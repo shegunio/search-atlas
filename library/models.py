@@ -70,12 +70,7 @@ class Loan(models.Model):
     def __str__(self):
         return f"{self.book.title} loaned to {self.member.user.username}"
 
-    def save(self):
-        if not self.due_date:
-            self.set_default_due_date()
-        super().save()
-
-    def set_default_due_date(self):
-        if not self.due_date:
+    def save(self, *args, **kwargs):
+        if not self.due_date and self.loan_date:
             self.due_date = self.loan_date + timedelta(days=self.loan_duration)
-            self.save()
+        super().save(*args, **kwargs)
