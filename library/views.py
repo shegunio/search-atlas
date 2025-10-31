@@ -1,18 +1,33 @@
 from rest_framework import viewsets, status
 from rest_framework.response import Response
+from rest_framework.views import APIView
+
 from .models import Author, Book, Member, Loan
-from .serializers import AuthorSerializer, BookSerializer, MemberSerializer, LoanSerializer
+from .serializers import AuthorSerializer, BookSerializer, MemberSerializer, LoanSerializer, ExtendLoanSerializerIn
 from rest_framework.decorators import action
 from django.utils import timezone
+from django.utils.timezone import timedelta
 from .tasks import send_loan_notification
+from rest_framework.pagination import PageNumberPagination
+
+
+class CustomPagination(PageNumberPagination):
+    page_size = 25
+
 
 class AuthorViewSet(viewsets.ModelViewSet):
     queryset = Author.objects.all()
     serializer_class = AuthorSerializer
+    pagination_class = CustomPagination
+
 
 class BookViewSet(viewsets.ModelViewSet):
     queryset = Book.objects.all()
     serializer_class = BookSerializer
+    pagination_class = CustomPagination
+
+    def get_queryset(self):
+        return Book.objects.select_related('author').all()
 
     @action(detail=True, methods=['post'])
     def loan(self, request, pk=None):
@@ -52,3 +67,30 @@ class MemberViewSet(viewsets.ModelViewSet):
 class LoanViewSet(viewsets.ModelViewSet):
     queryset = Loan.objects.all()
     serializer_class = LoanSerializer
+
+    @action(detail=True, methods=['post'])
+    def extend_due_date(self, request, pk=None):
+        serializer = ExtendLoanSerializerIn(data=request.data, context=self.get_serializer_context())
+        serializer.is_valid(raise_exception=True)
+        additional_days = serializer.validated_data.get('additional_days')
+        loan = self.get_object()
+        today = timezone.now().date()
+        if loan.due_date and loan.due_date < today:
+            return Response({'detail': 'Loan is already due and cannot be extended'}, status=400)
+        loan.due_date = loan.due_date + timedelta(days=additional_days)
+        loan.save()
+
+        return Response({
+            'detail': 'Loan due date has been extended successfully',
+            'data': self.serializer_class(loan, context=self.get_serializer_context()).data
+        })
+
+
+class TopMemberView(APIView):
+
+    def get(self, request):
+        loans = Loan.objects.all().aggregate(
+
+        )
+
+
