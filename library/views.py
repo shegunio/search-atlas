@@ -76,8 +76,13 @@ class LoanViewSet(viewsets.ModelViewSet):
         additional_days = serializer.validated_data.get('additional_days')
         loan = self.get_object()
         today = timezone.now().date()
-        if loan.due_date and loan.due_date < today:
+
+        if not loan.due_date:
+            return Response({'detail': 'Loan does not have a due date'}, status=400)
+
+        if loan.due_date < today:
             return Response({'detail': 'Loan is already due and cannot be extended'}, status=400)
+
         loan.due_date = loan.due_date + timedelta(days=additional_days)
         loan.save()
 

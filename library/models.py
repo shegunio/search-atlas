@@ -71,6 +71,8 @@ class Loan(models.Model):
         return f"{self.book.title} loaned to {self.member.user.username}"
 
     def save(self, *args, **kwargs):
-        if not self.due_date and self.loan_date:
-            self.due_date = self.loan_date + timedelta(days=self.loan_duration)
+        is_new = self.pk is None
         super().save(*args, **kwargs)
+        if is_new and not self.due_date:
+            self.due_date = self.loan_date + timedelta(days=self.loan_duration)
+            super().save(update_fields=['due_date'])
