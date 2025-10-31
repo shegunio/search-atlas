@@ -25,34 +25,31 @@ def send_loan_notification(loan_id):
 
 @shared_task
 def check_overdue_loans():
-    """
-    Query all loans where is_returned is False and due_date is past.
-    Send an email reminder to each member with overdue books.
-    :return:
-    """
-
     today = timezone.now().date()
-    loans = Loan.objects.filter(is_returned=False,)
-    print(f'Found {loans.count()} that are not returned yet')
+    overdue_loans = Loan.objects.filter(is_returned=False, due_date__lt=today)
 
-    for loan in loans:
-        if loan.due_date < today:
-            user = loan.member.user
-            email = user.email
-            content = f"""
-            Dear {user.first_name},
-            
-            This is to remind you that your book loan is due today, kindly return the book as soon as possible.
-            
-            Regards,
-            SearchAtlas.
-            """
-            # Send email to user for reminder
-            send_mail(
-                subject='Loan due date reminder',
-                message=content,
-                html_message=content,
-                from_email=settings.DEFAULT_FROM_EMAIL,
-                recipient_list=[email]
-            )
+    for loan in overdue_loans:
+        user = loan.member.user
+        email = user.email
+        book_title = loan.book.title
+        days_overdue = (today - loan.due_date).days
+
+        message = f"""Dear {user.first_name or user.username},
+
+This is to remind you that your book loan for "{book_title}" is overdue by {days_overdue} day(s).
+
+Due Date: {loan.due_date}
+Please return the book as soon as possible.
+
+Regards,
+Library Management System
+"""
+
+        send_mail(
+            subject='Overdue Book Loan Reminder',
+            message=message,
+            from_email=settings.DEFAULT_FROM_EMAIL,
+            recipient_list=[email],
+            fail_silently=False,
+        )
 

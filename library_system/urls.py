@@ -14,6 +14,7 @@ router.register(r'loans', views.LoanViewSet)
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include(router.urls)),
+    path('api/members/top-active/', views.TopMemberView.as_view(), name='top-active-members'),
 
     # # Swagger Doc URLs
     # path('doc/', SpectacularSwaggerView.as_view),

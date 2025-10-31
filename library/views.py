@@ -1,6 +1,7 @@
 from rest_framework import viewsets, status
 from rest_framework.response import Response
 from rest_framework.views import APIView
+from django.db import models
 
 from .models import Author, Book, Member, Loan
 from .serializers import AuthorSerializer, BookSerializer, MemberSerializer, LoanSerializer, ExtendLoanSerializerIn
@@ -89,8 +90,21 @@ class LoanViewSet(viewsets.ModelViewSet):
 class TopMemberView(APIView):
 
     def get(self, request):
-        loans = Loan.objects.all().aggregate(
+        from django.db.models import Count
 
-        )
+        top_members = Member.objects.annotate(
+            active_loans=Count('loans', filter=models.Q(loans__is_returned=False))
+        ).filter(active_loans__gt=0).order_by('-active_loans')[:5]
+
+        result = []
+        for member in top_members:
+            result.append({
+                'id': member.id,
+                'username': member.user.username,
+                'email': member.user.email,
+                'active_loans': member.active_loans
+            })
+
+        return Response(result, status=status.HTTP_200_OK)
 
 
